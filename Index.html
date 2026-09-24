@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guía de código SQL: DDL y DML</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1c1c1a;--mut:#5f5f5a;--card:#fff;--bd:#d8d8d0;--code:#f0f0ea;--ddl:#2563eb;--dml:#16a34a;--ctl:#6b7280;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--fg:#eeeee8;--mut:#a5a59d;--card:#202020;--bd:#3a3a36;--code:#262624}}
+:root[data-theme="dark"]{--bg:#161615;--fg:#eeeee8;--mut:#a5a59d;--card:#202020;--bd:#3a3a36;--code:#262624}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1000px;margin:0 auto;padding:16px}
+h1{font-size:1.6rem;margin:.2em 0}
+h2{font-size:1.2rem;margin:1.8em 0 .5em;padding:4px 10px;border-left:6px solid var(--ctl);background:var(--card)}
+h2.d{border-color:var(--ddl)}h2.m{border-color:var(--dml)}
+h3{font-size:.95rem;margin:1.1em 0 .3em}
+p{margin:.3em 0}.s{color:var(--mut)}
+.w{font-size:.85rem;color:var(--mut);margin:2px 0 8px}.w b{color:var(--fg)}
+nav a{display:inline-block;margin:2px 4px 2px 0;padding:3px 10px;border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--fg);text-decoration:none;font-size:.82rem}
+pre{margin:4px 0 6px;padding:10px 12px;background:var(--code);border:1px solid var(--bd);border-radius:8px;overflow-x:auto;font:.84rem/1.5 ui-monospace,Menlo,Consolas,monospace}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.84rem;background:var(--code);padding:1px 4px;border-radius:4px}
+pre code{padding:0;background:none}
+.box{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.84rem;min-width:640px}
+th,td{border:1px solid var(--bd);padding:5px 8px;text-align:left;vertical-align:top}th{background:var(--code)}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;font-size:.86rem}
+</style></head><body><main>
+<h1>Guía de código SQL: DDL y DML</h1>
+<p class="s">Sintaxis base estilo MySQL; las variantes por SMBD están en la sección 5. Cada bloque indica <b>con qué se combina</b>. Los nombres (t, col, padre, hija…) son genéricos.</p>
+<nav><a href="#ddl">1 DDL</a><a href="#ins">2 INSERT / UPDATE / DELETE</a><a href="#sel">3 SELECT</a><a href="#rec">4 Combinaciones</a><a href="#var">5 Variantes</a><a href="#ctl">6 DCL / TCL</a><a href="#tr">7 Trampas</a></nav>
+
+<h2 class="d" id="ddl">1. DDL: definir y cambiar la estructura</h2>
+
+<h3>CREATE TABLE</h3>
+<p class="w">Se combina con: tipos de dato, PRIMARY KEY, FOREIGN KEY (la tabla padre debe existir antes), NOT NULL, UNIQUE, CHECK, DEFAULT.</p>
+<pre><code>CREATE TABLE padre (
+  id       VARCHAR(5)   PRIMARY KEY,
+  nombre   VARCHAR(30)  NOT NULL UNIQUE,
+  vigente  TINYINT      DEFAULT 1 CHECK (vigente IN (0,1))
+);
+CREATE TABLE hija (
+  cod      VARCHAR(10),
+  nombre   VARCHAR(30)  NOT NULL,
+  precio   DECIMAL(8,2) DEFAULT 0,
+  id_padre VARCHAR(5),
+  PRIMARY KEY (cod),
+  CONSTRAINT fk_hija_padre FOREIGN KEY (id_padre) REFERENCES padre(id)
+);
+-- PK compuesta (tabla de detalle, relación M:N)
+CREATE TABLE detalle (
+  folio INT, cod VARCHAR(10), cant INT NOT NULL,
+  PRIMARY KEY (folio, cod),
+  FOREIGN KEY (folio) REFERENCES cabecera(folio),
+  FOREIGN KEY (cod)   REFERENCES hija(cod)
+);</code></pre>
+<p class="w">Tipos: <code>INT</code> <code>DECIMAL(p,s)</code> <code>VARCHAR(n)</code> <code>CHAR(n)</code> <code>DATE</code> <code>TIME</code> <code>DATETIME</code> <code>BOOLEAN</code>. NOT NULL solo a nivel de columna; PK/UNIQUE/FK compuestas a nivel de tabla.</p>
+
+<h3>ALTER TABLE</h3>
+<p class="w">Se combina con: ADD / DROP / MODIFY, ADD CONSTRAINT. Después suele venir un UPDATE (poblar la columna nueva) o un INSERT.</p>
+<pre><code>ALTER TABLE t ADD c1 VARCHAR(10) NULL, ADD c2 TIME;       -- columnas nuevas
+ALTER TABLE t DROP COLUMN c1;                              -- quitar columna
+ALTER TABLE t MODIFY c1 VARCHAR(30) NOT NULL;              -- cambiar tipo
+ALTER TABLE t ADD CONSTRAINT pk_t PRIMARY KEY (id);
+ALTER TABLE t ADD CONSTRAINT uq_t UNIQUE (c1);
+ALTER TABLE t ADD CONSTRAINT ck_t CHECK (precio &gt;= 0);
+ALTER TABLE t ALTER COLUMN c2 SET DEFAULT 0;
+-- Relación 1:N sobre tablas ya creadas (la FK va en el lado "muchos")
+ALTER TABLE hija ADD id_padre VARCHAR(5);
+ALTER TABLE hija ADD CONSTRAINT fk_h FOREIGN KEY (id_padre) REFERENCES padre(id);</code></pre>
+
+<h3>CREATE VIEW</h3>
+<p class="w">Se combina con: cualquier SELECT (JOIN, GROUP BY, HAVING, ORDER BY). Las columnas calculadas necesitan alias. Luego se consulta como una tabla y puede servir de base a otra vista.</p>
+<pre><code>CREATE VIEW v_resumen AS
+SELECT a.k, COUNT(b.k) AS n, COALESCE(SUM(b.monto),0) AS total
+FROM a LEFT JOIN b ON a.k = b.k
+GROUP BY a.k;
+
+SELECT v.*, total * 0.10 AS comision FROM v_resumen v;   -- consultar la vista</code></pre>
+
+<h3>RENAME · DROP · TRUNCATE · INDEX · COMMENT</h3>
+<pre><code>RENAME TABLE viejo TO nuevo;              -- MySQL (ver variantes)
+DROP VIEW v_resumen;   DROP TABLE hija;   -- hijas primero
+DROP DATABASE ejemplo;
+TRUNCATE TABLE t;                         -- vacía, conserva estructura, sin WHERE
+CREATE UNIQUE INDEX ix_t_c ON t (c);      -- o CREATE INDEX
+CREATE ROLE consultas;   CREATE USER susana IDENTIFIED BY 'clave';
+COMMENT ON COLUMN t.c IS 'texto';         -- Oracle/PostgreSQL</code></pre>
+
+<h2 class="m" id="ins">2. DML: INSERT, UPDATE, DELETE</h2>
+<h3>INSERT</h3>
+<p class="w">Depende de: tabla y columnas ya creadas, padres insertados antes que hijas (FK). Se combina con: lista de columnas, VALUES o SELECT.</p>
+<pre><code>INSERT INTO t (c1, c2) VALUES ('a', 1);                      -- un registro
+INSERT INTO t (c1, c2) VALUES ('a', 1), ('b', 2), ('c', 3);  -- varios
+INSERT INTO t VALUES ('a', 1, 'x');                          -- todas las columnas, en orden
+INSERT INTO t2 (c1, c2) SELECT c1, c2 FROM t1 WHERE cond;    -- desde consulta (sin VALUES)</code></pre>
+
+<h3>UPDATE</h3>
+<p class="w">Se combina con: SET (valor, expresión o subconsulta) y WHERE (comparación, IN, NOT IN, EXISTS). Sin WHERE afecta a todas las filas.</p>
+<pre><code>UPDATE t SET c1 = 'x', c2 = 5 WHERE clave = 'k';       -- completar datos por clave
+UPDATE t SET precio = precio * 1.2;                     -- todas las filas
+UPDATE t SET c = (SELECT AVG(c) FROM t) WHERE c BETWEEN 4000 AND 5000;
+-- Marcar según existan (o no) registros en otra tabla: dos UPDATE complementarios
+UPDATE t SET flag = 0 WHERE k NOT IN (SELECT k FROM det WHERE k IS NOT NULL);
+UPDATE t SET flag = 1 WHERE k IN (SELECT k FROM det);
+-- Equivalente con EXISTS
+UPDATE t SET flag = 1 WHERE EXISTS (SELECT 1 FROM det d WHERE d.k = t.k);</code></pre>
+
+<h3>DELETE</h3>
+<p class="w">Se combina con: WHERE. Orden: hijas antes que padres. Borrar todo sin perder estructura: DELETE o TRUNCATE tabla por tabla.</p>
+<pre><code>DELETE FROM t WHERE sueldo &gt; 20000;
+DELETE FROM hija;  DELETE FROM padre;      -- vaciar respetando FK</code></pre>
+
+<h2 class="m" id="sel">3. SELECT: la sentencia que se combina con todo</h2>
+<pre><code>SELECT [DISTINCT] col, expr AS alias, funcion(col)     -- 5º  (qué mostrar)
+FROM   t1 [alias]                                      -- 1º  (de dónde)
+       [INNER|LEFT|RIGHT|FULL] JOIN t2 ON t1.pk = t2.fk -- 2º  (cómo unir)
+WHERE  cond [AND|OR|NOT cond]                          -- 3º  filtra FILAS
+GROUP BY col                                           -- 4º  agrupa
+HAVING agregado cond                                   -- 4º  filtra GRUPOS
+ORDER BY col | alias | nº [ASC|DESC];                  -- 6º  ordena</code></pre>
+
+<h3>JOIN</h3>
+<pre><code>FROM a INNER JOIN b ON a.k = b.k        -- solo coincidencias
+FROM a LEFT  JOIN b ON a.k = b.k        -- todo A; sin par, B = NULL
+FROM a RIGHT JOIN b ON a.k = b.k        -- todo B
+FROM a FULL OUTER JOIN b ON a.k = b.k   -- todo de ambos
+FROM a NATURAL JOIN b                   -- une por columnas con el mismo nombre
+FROM a CROSS JOIN b                     -- producto cartesiano (filas A x filas B)
+FROM a, b WHERE a.k = b.k               -- forma antigua de INNER JOIN
+-- Solo las filas de A SIN par en B:
+SELECT a.* FROM a LEFT JOIN b ON a.k = b.k WHERE b.k IS NULL;</code></pre>
+
+<h3>Condiciones (WHERE / HAVING)</h3>
+<pre><code>col = 5   col &lt;&gt; 5   col &gt; 5   col &lt;= 5
+col BETWEEN 10 AND 20        col NOT BETWEEN 10 AND 20
+col IN ('a','b')             col NOT IN (SELECT k FROM t2)
+col LIKE 'Ma%'  (% varios, _ uno)      col IS NULL   col IS NOT NULL
+EXISTS (SELECT 1 FROM t2 WHERE t2.k = t1.k)     cond1 AND (cond2 OR NOT cond3)</code></pre>
+
+<h3>Agregación</h3>
+<p class="w">COUNT, SUM, AVG, MIN, MAX, VARIANCE. Van en SELECT y HAVING, nunca en WHERE. Toda columna del SELECT que no sea agregado debe estar en GROUP BY.</p>
+<pre><code>SELECT k, COUNT(*) AS n, SUM(cant) AS q, AVG(precio) AS prom
+FROM det GROUP BY k HAVING SUM(cant) &gt; 2 ORDER BY q DESC;</code></pre>
+
+<h3>Subconsultas</h3>
+<pre><code>WHERE precio &gt; (SELECT AVG(precio) FROM t)                -- escalar
+WHERE k IN (SELECT k FROM det)                            -- lista
+WHERE EXISTS (SELECT 1 FROM det d WHERE d.k = t.k)        -- correlacionada
+FROM (SELECT k, SUM(m) AS tot FROM det GROUP BY k) x      -- en FROM (alias obligatorio)
+SELECT nom, (SELECT COUNT(*) FROM det d WHERE d.k = t.k) AS n FROM t;  -- en SELECT</code></pre>
+
+<h3>Funciones</h3>
+<pre><code>CONCAT(nom, ' ', ape) AS completo    UPPER LOWER INITCAP LPAD RPAD LTRIM REPLACE SUBSTR
+ABS SQRT EXP LN LOG SIN COS TAN      precio * 1.20 AS con_aumento   'Texto: ' AS etiqueta
+SYSDATE   MONTHS_BETWEEN(f1,f2)   ADD_MONTHS(f,n)
+TO_CHAR(x)   TO_DATE('01/02/1995','DD/MM/YYYY')   TO_NUMBER('12')   CAST(x AS INT)
+COALESCE(SUM(m), 0)      -- reemplaza NULL (IFNULL en MySQL, NVL en Oracle)</code></pre>
+
+<h2 class="m" id="rec">4. Combinaciones típicas (DDL + DML juntos)</h2>
+<h3>A. Reporte de TODAS las filas de A, tengan o no detalle en B</h3>
+<p class="w">LEFT JOIN + GROUP BY + COUNT(columna de B) + SUM + COALESCE. Se puede guardar con CREATE VIEW y luego calcular sobre la vista.</p>
+<pre><code>SELECT a.k, CONCAT(a.nom,' ',a.ape) AS nombre, COUNT(b.k) AS n, COALESCE(SUM(b.m),0) AS total
+FROM a LEFT JOIN b ON a.k = b.k
+GROUP BY a.k, a.nom, a.ape;</code></pre>
+<h3>B. Ranking filtrado, guardado como vista</h3>
+<p class="w">JOIN + GROUP BY + SUM + HAVING + ORDER BY DESC → CREATE VIEW.</p>
+<pre><code>CREATE VIEW v_top AS
+SELECT p.cod, p.nombre, p.precio, SUM(d.cant) AS vendidos
+FROM p INNER JOIN d ON p.cod = d.cod
+GROUP BY p.cod, p.nombre, p.precio
+HAVING SUM(d.cant) &gt; 2
+ORDER BY vendidos DESC;</code></pre>
+<h3>C. Columna nueva + poblarla en dos pasos</h3>
+<p class="w">ALTER ADD → UPDATE (condición) → UPDATE (condición complementaria).</p>
+<pre><code>ALTER TABLE t ADD vigente BOOLEAN;
+UPDATE t SET vigente = 0 WHERE k NOT IN (SELECT k FROM det WHERE k IS NOT NULL);
+UPDATE t SET vigente = 1 WHERE vigente IS NULL;</code></pre>
+<h3>D. Nueva tabla catálogo y relación 1:N</h3>
+<p class="w">CREATE TABLE → INSERT (varias filas) → ALTER ADD columna FK en la hija → UPDATE para asignar.</p>
+<pre><code>CREATE TABLE catalogo (id VARCHAR(5) PRIMARY KEY, descripcion VARCHAR(30), vigente TINYINT);
+INSERT INTO catalogo VALUES ('A1','Uno',1), ('A2','Dos',1);
+ALTER TABLE hija ADD id_cat VARCHAR(5);
+ALTER TABLE hija ADD CONSTRAINT fk_cat FOREIGN KEY (id_cat) REFERENCES catalogo(id);
+UPDATE hija SET id_cat = 'A1' WHERE cod = 'x';</code></pre>
+<h3>E. Registro nuevo + completar sus datos después</h3>
+<pre><code>INSERT INTO prov (rfc, empresa) VALUES ('ABC123', 'Empresa');
+ALTER TABLE prov ADD calle VARCHAR(20) NULL, ADD cp INT NULL;   -- ver variantes
+UPDATE prov SET calle = 'Reforma', cp = 6600 WHERE rfc = 'ABC123';</code></pre>
+<h3>F. Vaciar toda la base y luego eliminarla</h3>
+<pre><code>DELETE FROM detalle; DELETE FROM cabecera; DELETE FROM hija; DELETE FROM padre;
+-- o desactivando FK (MySQL): SET FOREIGN_KEY_CHECKS = 0; TRUNCATE ...; SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE detalle; DROP TABLE cabecera; DROP TABLE hija; DROP TABLE padre;</code></pre>
+
+<h2 id="var">5. Variantes por SMBD</h2>
+<div class="box"><table>
+<tr><th></th><th>MySQL</th><th>Oracle</th><th>SQL Server</th></tr>
+<tr><td>Renombrar tabla</td><td><code>RENAME TABLE a TO b</code></td><td><code>ALTER TABLE a RENAME TO b</code></td><td><code>EXEC sp_rename 'a','b'</code></td></tr>
+<tr><td>Varias columnas nuevas</td><td><code>ADD c1 …, ADD c2 …</code></td><td><code>ADD (c1 …, c2 …)</code></td><td><code>ADD c1 …, c2 …</code></td></tr>
+<tr><td>Cambiar tipo</td><td><code>MODIFY c tipo</code></td><td><code>MODIFY c tipo</code></td><td><code>ALTER COLUMN c tipo</code></td></tr>
+<tr><td>Booleano</td><td><code>BOOLEAN</code> (TINYINT(1))</td><td><code>NUMBER(1)</code> + CHECK</td><td><code>BIT</code></td></tr>
+<tr><td>Texto / hora</td><td><code>VARCHAR, TIME</code></td><td><code>VARCHAR2, DATE</code></td><td><code>VARCHAR, TIME</code></td></tr>
+<tr><td>Concatenar</td><td><code>CONCAT(a,' ',b)</code></td><td><code>a||' '||b</code></td><td><code>a+' '+b</code></td></tr>
+<tr><td>NULL por valor</td><td><code>IFNULL / COALESCE</code></td><td><code>NVL / COALESCE</code></td><td><code>ISNULL / COALESCE</code></td></tr>
+<tr><td>Fecha actual</td><td><code>NOW()</code></td><td><code>SYSDATE</code></td><td><code>GETDATE()</code></td></tr>
+<tr><td>Varios VALUES</td><td><code>VALUES (..),(..)</code></td><td>un INSERT por fila o <code>INSERT ALL</code></td><td><code>VALUES (..),(..)</code></td></tr>
+</table></div>
+
+<h2 id="ctl">6. DCL y TCL</h2>
+<pre><code>GRANT SELECT, DELETE ON t TO susana;   GRANT consultas TO susana;   GRANT ALL ON t TO susana;
+REVOKE SELECT ON t FROM susana;        REVOKE consultas FROM susana;
+COMMIT;      -- confirma los cambios de DML
+ROLLBACK;    -- deshace desde el último COMMIT</code></pre>
+
+<h2 id="tr">7. Trampas frecuentes</h2>
+<div class="g">
+<div class="c"><b>COUNT(*) vs COUNT(col)</b><br>Con LEFT JOIN, COUNT(*) cuenta la fila vacía como 1. Cuenta una columna de la tabla derecha.</div>
+<div class="c"><b>NOT IN y NULL</b><br>Si la subconsulta devuelve NULL, NOT IN no devuelve filas. Usa IS NOT NULL o NOT EXISTS.</div>
+<div class="c"><b>WHERE vs HAVING</b><br>WHERE filtra antes de agrupar; HAVING filtra los grupos ya calculados.</div>
+<div class="c"><b>Ceros a la izquierda</b><br>Un CP como INT pierde el 0 inicial (08620 pasa a 8620). Si importa, usa texto.</div>
+<div class="c"><b>Vistas</b><br>Alias en toda columna calculada. Una vista se consulta y se combina como cualquier tabla.</div>
+<div class="c"><b>Orden con FK</b><br>INSERT: padres primero. DELETE y DROP: hijas primero.</div>
+<div class="c"><b>INSERT con subconsulta</b><br>Se escribe <code>INSERT … SELECT</code>, sin la palabra VALUES.</div>
+<div class="c"><b>Longitudes</b><br>Verifica que VARCHAR(n) alcance para los datos (RFC, calles, colonias).</div>
+</div>
+</main></body></html>
