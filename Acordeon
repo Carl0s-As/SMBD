@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Lógico SQL: DDL y DML</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --ddl-color: #059669;
+            --dml-color: #d97706;
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: var(--primary);
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #e2e8f0;
+            color: #475569;
+        }
+        .tab-btn.active-ddl {
+            background: var(--ddl-color);
+            color: white;
+        }
+        .tab-btn.active-dml {
+            background: var(--dml-color);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .accordion-item {
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .accordion-header {
+            width: 100%;
+            text-align: left;
+            padding: 15px;
+            background: #f1f5f9;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .accordion-header:hover {
+            background: #e2e8f0;
+        }
+        .accordion-body {
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: white;
+        }
+        .accordion-body-content {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+        .connection-box {
+            background: #f8fafc;
+            border-left: 4px solid var(--primary);
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .flow-step {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            border-left: 2px dashed #cbd5e1;
+            position: relative;
+        }
+        .flow-step::before {
+            content: '↳';
+            position: absolute;
+            left: -2px;
+            color: #94a3b8;
+        }
+        code {
+            font-family: Consolas, Monaco, 'Andale Mono', monospace;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.95em;
+        }
+        .var { color: #c084fc; font-style: italic; } /* Variables genéricas */
+        .kw { color: #38bdf8; font-weight: bold; } /* Palabras reservadas */
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Mapa Lógico de SQL</h1>
+    <p style="text-align: center;">¿Qué necesitas hacer en tu base de datos?</p>
+    
+    <div class="tabs">
+        <button class="tab-btn active-ddl" onclick="openTab('ddl', this)">DDL: Crear/Modificar Estructuras</button>
+        <button class="tab-btn" onclick="openTab('dml', this)">DML: Consultar/Manipular Datos</button>
+    </div>
+
+    <!-- BLOQUE DDL -->
+    <div id="ddl" class="tab-content active">
+        <h2 style="color: var(--ddl-color);">Lenguaje de Definición de Datos (DDL)</h2>
+        
+        <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(this)">
+                1. Crear un contenedor nuevo desde cero (CREATE TABLE) <span>+</span>
+            </button>
+            <div class="accordion-body">
+                <div class="accordion-body-content">
+                    <p><strong>Instrucción principal:</strong> <code>CREATE TABLE</code></p>
+                    <div class="connection-box">
+                        <strong>Se combina con:</strong>
+                        <div class="flow-step">Atributos y tipos de datos (<code>VARCHAR</code>, <code>INT</code>, <code>BOOLEAN</code>).</div>
+                        <div class="flow-step">Reglas de integridad (<code>CONSTRAINT</code> para <code>PRIMARY KEY</code>).</div>
+                    </div>
+                    <strong>Estructura resultante:</strong>
+<pre><span class="kw">CREATE TABLE</span> <span class="var">nombreTabla</span> (
+    <span class="var">columnaPK</span> <span class="kw">VARCHAR</span>(5),
+    <span class="var">columnaLogica</span> <span class="kw">BOOLEAN</span>,
+    <span class="kw">CONSTRAINT</span> <span class="var">pk_nombre</span> <span class="kw">PRIMARY KEY</span> (<span class="var">columnaPK</span>)
+);</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(this)">
+                2. Modificar una estructura existente (ALTER TABLE / RENAME) <span>+</span>
+            </button>
+            <div class="accordion-body">
+                <div class="accordion-body-content">
+                    <p><strong>Instrucción principal:</strong> <code>ALTER TABLE</code> o <code>RENAME</code></p>
+                    <div class="connection-box">
+                        <strong>Bifurcaciones (¿Qué quieres cambiar?):</strong>
+                        <div class="flow-step"><strong>Agregar columnas:</strong> Combina con <code>ADD <span class="var">columna</span> <span class="var">tipo</span></code>.</div>
+                        <div class="flow-step"><strong>Relacionar tablas (1:N):</strong> Combina con <code>ADD CONSTRAINT ... FOREIGN KEY ... REFERENCES <span class="var">tablaDestino</span>(<span class="var">pk</span>)</code>.</div>
+                        <div class="flow-step"><strong>Comportamiento lógico:</strong> Combina con <code>ADD CONSTRAINT ... CHECK (<span class="var">columna</span> IN (True, False))</code>.</div>
+                        <div class="flow-step"><strong>Renombrar tabla:</strong> <code>RENAME TABLE <span class="var">antiguo</span> TO <span class="var">nuevo</span></code>.</div>
+                    </div>
+<pre><span class="kw">ALTER TABLE</span> <span class="var">nombreTabla</span> 
+<span class="kw">ADD</span> <span class="var">nuevaColumna1</span> <span class="kw">VARCHAR</span>(20) <span class="kw">NULL</span>,
+<span class="kw">ADD</span> <span class="var">nuevaColumna2</span> <span class="kw">INT</span> <span class="kw">NULL</span>,
+<span class="kw">ADD CONSTRAINT</span> <span class="var">fk_relacion</span> <span class="kw">FOREIGN KEY</span> (<span class="var">columnaFk</span>) <span class="kw">REFERENCES</span> <span class="var">otraTabla</span>(<span class="var">columnaPk</span>);</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(this)">
+                3. Guardar una consulta compleja como estructura (CREATE VIEW) <span>+</span>
+            </button>
+            <div class="accordion-body">
+                <div class="accordion-body-content">
+                    <p><strong>Instrucción principal:</strong> <code>CREATE VIEW</code></p>
+                    <div class="connection-box">
+                        <strong>Se combina con:</strong>
+                        <div class="flow-step">La palabra reservada <code>AS</code> seguida de un flujo completo <code>SELECT</code> (DML).</div>
+                    </div>
+<pre><span class="kw">CREATE VIEW</span> <span class="var">nombreVista</span> <span class="kw">AS</span> 
+<span class="kw">SELECT</span> <span class="var">col1</span>, <span class="kw">SUM</span>(<span class="var">col2</span>) 
+<span class="kw">FROM</span> <span class="var">nombreTabla</span> 
+<span class="kw">GROUP BY</span> <span class="var">col1</span>;</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BLOQUE DML -->
+    <div id="dml" class="tab-content">
+        <h2 style="color: var(--dml-color);">Lenguaje de Manipulación de Datos (DML)</h2>
+
+        <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(this)">
+                A. Extraer y calcular datos (Flujo SELECT) <span>+</span>
+            </button>
+            <div class="accordion-body">
+                <div class="accordion-body-content">
+                    <p><em>Sigue este flujo paso a paso hacia abajo para armar tu consulta:</em></p>
+                    <div class="connection-box">
+                        <div class="flow-step"><strong>1. ORIGEN:</strong> <code>FROM <span class="var">tablaOrigen</span></code></div>
+                        <div class="flow-step"><strong>2. CRUCES:</strong> ¿Más de una tabla? Combina con <code>INNER JOIN</code> (coincidencias) o <code>LEFT OUTER JOIN</code> (todos los principales). Conecta siempre con <code>ON <span class="var">t1.pk</span> = <span class="var">t2.fk</span></code>.</div>
+                        <div class="flow-step"><strong>3. FILTRO INICIAL:</strong> <code>WHERE</code> (operadores =, >, <, BETWEEN). Filtra filas antes de calcular.</div>
+                        <div class="flow-step"><strong>4. AGRUPACIÓN:</strong> <code>GROUP BY</code>. Obligatorio poner todas las columnas sueltas si vas a usar SUM() o COUNT().</div>
+                        <div class="flow-step"><strong>5. FILTRO MATEMÁTICO:</strong> <code>HAVING</code>. Filtra resultados de grupos (ej. <code>HAVING SUM(x) > 2</code>).</div>
+                        <div class="flow-step"><strong>6. SALIDA VISUAL:</strong> <code>SELECT</code>. Define qué mostrar. Usa <code>CONCAT()</code> para unir, <code>SUM()</code>/<code>COUNT()</code> para totalizar, y <code>AS <span class="var">alias</span></code> para nombrar.</div>
+                        <div class="flow-step"><strong>7. ORDEN:</strong> <code>ORDER BY <span class="var">columna</span> DESC</code> (o ASC).</div>
+                    </div>
+<pre><span class="kw">SELECT</span> 
+    <span class="var">t1.colId</span>, 
+    <span class="kw">CONCAT</span>(<span class="var">t1.nombre</span>, ' ', <span class="var">t1.apellido</span>) <span class="kw">AS</span> <span class="var">NombreCompleto</span>, 
+    <span class="kw">SUM</span>(<span class="var">t2.monto</span>) <span class="kw">AS</span> <span class="var">TotalAcumulado</span>
+<span class="kw">FROM</span> <span class="var">tablaPrincipal</span> <span class="var">t1</span>
+<span class="kw">LEFT OUTER JOIN</span> <span class="var">tablaSecundaria</span> <span class="var">t2</span> <span class="kw">ON</span> <span class="var">t1.colPk</span> = <span class="var">t2.colFk</span>
+<span class="kw">GROUP BY</span> <span class="var">t1.colId</span>, <span class="var">t1.nombre</span>, <span class="var">t1.apellido</span>
+<span class="kw">HAVING</span> <span class="kw">SUM</span>(<span class="var">t2.cantidad</span>) > 2
+<span class="kw">ORDER BY</span> <span class="var">TotalAcumulado</span> <span class="kw">DESC</span>;</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(this)">
+                B. Insertar nuevos registros completos (INSERT INTO) <span>+</span>
+            </button>
+            <div class="accordion-body">
+                <div class="accordion-body-content">
+                    <p><strong>Instrucción principal:</strong> <code>INSERT INTO</code></p>
+                    <div class="connection-box">
+                        <strong>Se combina con:</strong>
+                        <div class="flow-step">Cláusula <code>VALUES</code> y el bloque de datos entre paréntesis.</div>
+                    </div>
+<pre><span class="kw">INSERT INTO</span> <span class="var">nombreTabla</span> (<span class="var">columna1</span>, <span class="var">columna2</span>, <span class="var">columna3</span>) 
+<span class="kw">VALUES</span> ('<span class="var">textoValor</span>', 150, <span class="kw">TRUE</span>);</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <button class="accordion-header" onclick="toggleAccordion(this)">
+                C. Cambiar datos sin borrar la fila (UPDATE) <span>+</span>
+            </button>
+            <div class="accordion-body">
+                <div class="accordion-body-content">
+                    <p><strong>Instrucción principal:</strong> <code>UPDATE</code></p>
+                    <div class="connection-box">
+                        <strong>Obligatorio combinar con:</strong>
+                        <div class="flow-step"><code>SET</code> para asignar el nuevo valor (separados por comas para múltiples columnas).</div>
+                        <div class="flow-step"><code>WHERE</code> para evitar actualizar toda la tabla.</div>
+                        <div class="flow-step"><em>Opcional complejo:</em> Combinar <code>WHERE ... NOT IN</code> con una <code>(SELECT ...)</code> para actualizar basados en datos cruzados.</div>
+                    </div>
+<pre><span class="kw">UPDATE</span> <span class="var">nombreTabla</span> 
+<span class="kw">SET</span> <span class="var">columnaCambio1</span> = <span class="kw">FALSE</span>, <span class="var">columnaCambio2</span> = 0
+<span class="kw">WHERE</span> <span class="var">columnaFiltro</span> <span class="kw">NOT IN</span> (<span class="kw">SELECT</span> <span class="var">columnaRelacionada</span> <span class="kw">FROM</span> <span class="var">otraTabla</span>);</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active-ddl');
+            b.classList.remove('active-dml');
+            b.style.background = '#e2e8f0';
+            b.style.color = '#475569';
+        });
+
+        document.getElementById(tabId).classList.add('active');
+        
+        if(tabId === 'ddl') {
+            btn.classList.add('active-ddl');
+            btn.style.background = 'var(--ddl-color)';
+            btn.style.color = 'white';
+        } else {
+            btn.classList.add('active-dml');
+            btn.style.background = 'var(--dml-color)';
+            btn.style.color = 'white';
+        }
+    }
+
+    function toggleAccordion(btn) {
+        const body = btn.nextElementSibling;
+        const symbol = btn.querySelector('span');
+        
+        if (body.style.maxHeight) {
+            body.style.maxHeight = null;
+            symbol.textContent = '+';
+        } else {
+            document.querySelectorAll('.accordion-body').forEach(b => b.style.maxHeight = null);
+            document.querySelectorAll('.accordion-header span').forEach(s => s.textContent = '+');
+            
+            body.style.maxHeight = body.scrollHeight + "px";
+            symbol.textContent = '-';
+        }
+    }
+</script>
+
+</body>
+</html>
